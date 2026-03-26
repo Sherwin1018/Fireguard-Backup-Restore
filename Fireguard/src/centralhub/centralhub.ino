@@ -12,8 +12,8 @@
 
 // ===================== CONFIGURATION =====================
 // WiFi
-#define WIFI_SSID "MC_ADMIN"
-#define WIFI_PASSWORD ""
+#define WIFI_SSID "TPlink Malumbaga"
+#define WIFI_PASSWORD "M4lumb4g4444!!!!"
 
 // OTA Configuration
 #define OTA_HOSTNAME "FireGuard-CentralHub"
@@ -68,6 +68,7 @@
 #define ALERT_QUEUE_MAX 60
 #define ALERT_FLUSH_INTERVAL 5000
 #define ALERT_FLUSH_BATCH_SIZE 4
+#define ENABLE_FIREBASE_THRESHOLD_SYNC false
 
 // Display modes
 enum DisplayMode {
@@ -98,10 +99,10 @@ struct Thresholds {
   float temp_alert = 50.0;
   float humidity_warning = 80.0;
   float humidity_alert = 100.0;
-  float gas_warning = 1.5;
-  float gas_alert = 3.0;
-  float co_warning = 1.5;
-  float co_alert = 3.0;
+  float gas_warning = 20;
+  float gas_alert = 40;
+  float co_warning = 20;
+  float co_alert = 40;
   int flame_threshold = 1;
 };
 
@@ -207,7 +208,7 @@ void parseReceivedData(String data);
 void evaluateAlertLevel(NodeData* nodeData, NodeAlert* nodeAlert);
 void sendAlertToFirebase(NodeData* nodeData, NodeAlert* nodeAlert);
 void sendSMSAlert(NodeData* nodeData, NodeAlert* nodeAlert);
-void sendToFirebase(NodeData* nodeData, NodeAlert* nodeAlert);
+void sendToFirebase(NodeData* nodeData, NodeAlert* nodeAlert, bool forceSend = false);
 String getAlertLevelString(AlertLevel level);
 bool shouldSendAlert(NodeData* nodeData, NodeAlert* nodeAlert);
 void updateLCD();
@@ -235,6 +236,10 @@ void flushQueuedAlerts();
 
 // ===================== THRESHOLD SYNC FUNCTION =====================
 void syncThresholdsFromFirebase() {
+  if (!ENABLE_FIREBASE_THRESHOLD_SYNC) {
+    return;
+  }
+
   if (!Firebase.ready() || !signupOK) return;
   
   unsigned long now = millis();
@@ -293,8 +298,13 @@ void syncThresholdsFromFirebase() {
     
     Serial.println("✓ Thresholds synced successfully");
   } else {
-    Serial.println("Failed to fetch thresholds: " + fbdo.errorReason());
-    Serial.println("Using default thresholds");
+    String error = fbdo.errorReason();
+    if (error.indexOf("path not exist") != -1) {
+      Serial.println("Thresholds path missing in Firebase. Using local defaults.");
+    } else {
+      Serial.println("Failed to fetch thresholds: " + error);
+      Serial.println("Using default thresholds");
+    }
   }
   
   lastThresholdSync = now;
@@ -741,10 +751,10 @@ void setup() {
     lcd.print("LoRa init failed!   ");
     while (1);
   }
-  LoRa.setSignalBandwidth(62.5E3);
-  LoRa.setSpreadingFactor(12);
-  LoRa.setCodingRate4(8);
-  LoRa.setPreambleLength(12);
+  LoRa.setSignalBandwidth(125E3);
+  LoRa.setSpreadingFactor(9);
+  LoRa.setCodingRate4(5);
+  LoRa.setPreambleLength(8);
   LoRa.setSyncWord(0x12);
   LoRa.enableCrc();
   LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
@@ -1617,6 +1627,7 @@ void evaluateAlertLevel(NodeData* nodeData, NodeAlert* nodeAlert) {
     
     // Send alerts for WARNING and ALERT
     if (newLevel != NORMAL) {
+      sendToFirebase(nodeData, nodeAlert, true);
       sendAlertToFirebase(nodeData, nodeAlert);
       
       // Send SMS only if message changed or cooldown passed
@@ -1643,6 +1654,7 @@ void evaluateAlertLevel(NodeData* nodeData, NodeAlert* nodeAlert) {
         nodeAlert->smsSent = false;
         
         Serial.println("⚡ Warning escalated to Alert after " + String(WARNING_DELAY/1000) + "s delay");
+        sendToFirebase(nodeData, nodeAlert, true);
         sendAlertToFirebase(nodeData, nodeAlert);
         
         if (nodeAlert->lastSMSAlertMessage != nodeData->alertMessage &&
@@ -1733,12 +1745,12 @@ void sendSMSAlert(NodeData* nodeData, NodeAlert* nodeAlert) {
   }
 }
 
-void sendToFirebase(NodeData* nodeData, NodeAlert* nodeAlert) {
+void sendToFirebase(NodeData* nodeData, NodeAlert* nodeAlert, bool forceSend) {
   if (Firebase.ready() && signupOK) {
     unsigned long now = millis();
     
     // Real-time updates: send every time data is received
-    if (now - nodeData->lastFirebaseUpdate < FIREBASE_COOLDOWN) {
+    if (!forceSend && now - nodeData->lastFirebaseUpdate < FIREBASE_COOLDOWN) {
       return; // Too soon, skip this update
     }
     

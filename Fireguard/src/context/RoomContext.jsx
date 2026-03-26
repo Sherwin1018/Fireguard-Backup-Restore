@@ -8,6 +8,7 @@ import React, {
 import { db } from "../firebase";
 import { ref, onValue, update } from "firebase/database";
 import buzzer from "../public/buzzer.mp3";
+import { HUB_THRESHOLDS } from "../constants/thresholds";
 const RoomContext = createContext();
 
 export function useRoom() {
@@ -207,15 +208,16 @@ export function RoomProvider({ children }) {
       const message = String(room.alert_message || "").toLowerCase();
       const thresholdAlarm =
         room.fire ||
-        room.temperature > 55 ||
-        room.smoke > 600 ||
-        room.carbonMonoxide > 70;
-      const alertLevelAlarm = level === "alert";
+        room.temperature > HUB_THRESHOLDS.temperature.alert ||
+        room.smoke > HUB_THRESHOLDS.gas.alert ||
+        room.carbonMonoxide > HUB_THRESHOLDS.co.alert;
+      const levelAlarm = level === "alert" || level === "warning";
       const messageAlarm =
+        message.includes("warning") ||
         message.includes("alert") ||
         message.includes("flame");
 
-      return thresholdAlarm || alertLevelAlarm || messageAlarm;
+      return thresholdAlarm || levelAlarm || messageAlarm;
     });
 
     setBuzzerOn(anyAlarm);

@@ -4,6 +4,7 @@ import { MdCo2 } from "react-icons/md";
 import { GiSmokeBomb } from "react-icons/gi";
 import { useRoom } from "../context/RoomContext";
 import { useRoomChartModal } from "../context/RoomChartModalContext";
+import { HUB_THRESHOLDS } from "../constants/thresholds";
 
 // Blinking Logic
 function getBlinkingClass({
@@ -17,7 +18,10 @@ function getBlinkingClass({
 }) {
   if (status !== "Active" || isAlarmSilenced) return "";
   const thresholdAlarm =
-    fire || temperature > 55 || smoke > 600 || carbonMonoxide > 70;
+    fire ||
+    temperature > HUB_THRESHOLDS.temperature.alert ||
+    smoke > HUB_THRESHOLDS.gas.alert ||
+    carbonMonoxide > HUB_THRESHOLDS.co.alert;
   if (alert_level && alert_level.toLowerCase() === "warning")
     return "blink-yellow";
   if (thresholdAlarm || (alert_level && alert_level.toLowerCase() === "alert"))

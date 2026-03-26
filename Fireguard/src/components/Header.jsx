@@ -7,6 +7,7 @@ import { db } from "../firebase";
 import { ref, onValue } from "firebase/database";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { HUB_THRESHOLDS } from "../constants/thresholds";
 
 export default function Header() {
   const { rooms } = useRoom();
@@ -19,10 +20,11 @@ export default function Header() {
   const shouldBuzzerPlay = rooms.some(
       (room) =>
         (room.fire ||
-          room.temperature > 55 ||
-          room.smoke > 600 ||
-          room.carbonMonoxide > 70 ||
-          (room.alert_level && room.alert_level.toLowerCase() === "alert")) &&
+          room.temperature > HUB_THRESHOLDS.temperature.alert ||
+          room.smoke > HUB_THRESHOLDS.gas.alert ||
+          room.carbonMonoxide > HUB_THRESHOLDS.co.alert ||
+          (room.alert_level &&
+            ["alert", "warning"].includes(room.alert_level.toLowerCase()))) &&
         room.silenced !== true,
     );
 
@@ -95,9 +97,9 @@ export default function Header() {
   const alarmRooms = rooms.filter((room) => {
     const thresholdAlarm =
       room.fire ||
-      room.temperature > 55 ||
-      room.smoke > 600 ||
-      room.carbonMonoxide > 70;
+      room.temperature > HUB_THRESHOLDS.temperature.alert ||
+      room.smoke > HUB_THRESHOLDS.gas.alert ||
+      room.carbonMonoxide > HUB_THRESHOLDS.co.alert;
     const alertLevelAlarm =
       room.alert_level && room.alert_level.toLowerCase() === "alert";
     return (thresholdAlarm || alertLevelAlarm) && room.silenced !== true;

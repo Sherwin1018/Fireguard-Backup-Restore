@@ -4,11 +4,22 @@ import { useRoom } from "../context/RoomContext";
 import { db } from "../firebase";
 import { ref, onValue } from "firebase/database";
 import DashboardStats from "../components/DashboardStats";
+import { HUB_THRESHOLDS } from "../constants/thresholds";
 
 export default function Dashboard() {
   const { rooms } = useRoom();
   const [alertsToday, setAlertsToday] = useState(0);
   const [legendExpanded, setLegendExpanded] = useState(false);
+
+  const tempWarningStart = HUB_THRESHOLDS.temperature.warning;
+  const tempAlertStart = HUB_THRESHOLDS.temperature.alert;
+  const humidityWarningStart = HUB_THRESHOLDS.humidity.warning;
+  const humidityAlertStart = HUB_THRESHOLDS.humidity.alert;
+  const gasWarningStart = HUB_THRESHOLDS.gas.warning;
+  const gasAlertStart = HUB_THRESHOLDS.gas.alert;
+  const coWarningStart = HUB_THRESHOLDS.co.warning;
+  const coAlertStart = HUB_THRESHOLDS.co.alert;
+  const flameThreshold = HUB_THRESHOLDS.flame.threshold;
 
   useEffect(() => {
     const alertsRef = ref(db, "alerts");
@@ -16,11 +27,10 @@ export default function Dashboard() {
       const data = snapshot.val() || {};
       let todayCount = 0;
       const today = new Date();
-      const todayStr = today.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+      const todayStr = today.toISOString().slice(0, 10);
       Object.values(data).forEach((alert) => {
         if (!alert || !alert.timestamp) return;
-        // Check if alert is today
-        const alertDate = alert.timestamp.slice(0, 10); // 'YYYY-MM-DD'
+        const alertDate = alert.timestamp.slice(0, 10);
         if (alertDate === todayStr) {
           todayCount++;
         }
@@ -32,7 +42,6 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 md:ml-5 flex flex-col min-h-screen text-sm md:text-base bg-gray-50">
-      {/* only count rooms that are not archived */}
       {(() => {
         const visibleRooms = rooms.filter((r) => !r.archived);
         return (
@@ -92,10 +101,8 @@ export default function Dashboard() {
           </>
         );
       })()}
-      {/* Legend Footer: sticky at bottom of viewport */}
       <footer className="sticky bottom-0 w-full z-10 mt-auto">
         <div className="bg-gray-700 backdrop-blur-sm rounded-xl shadow-md p-3 md:p-3 flex flex-col md:flex-row md:items-center md:justify-center gap-3 md:gap-4 text-xs md:text-sm border border-gray-700">
-          {/* Mobile: Legend label and Show details button in one row */}
           <div className="md:hidden flex items-center justify-between w-full">
             <span className="font-semibold text-white">Legend:</span>
             <button
@@ -108,7 +115,6 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="w-full text-gray-300">
-            {/* Mobile: stacked details (toggle) - unchanged behavior */}
             <div
               id="mobile-legend-details"
               className={`${
@@ -117,32 +123,31 @@ export default function Dashboard() {
             >
               <span className="mr-3 md:mr-4 block">
                 <span className="font-semibold text-white">Temperature:</span>{" "}
-                Normal {"<"}
-                40°C, Warning 40-49°C, Alert {">"}50°C
+                Normal {"<="}
+                {tempWarningStart}°C, Warning {tempWarningStart + 0.1}-{tempAlertStart}°C, Alert {">"}{tempAlertStart}°C
               </span>
               <span className="mr-3 md:mr-4 block">
                 <span className="font-semibold text-white">
                   Smoke and Gas (ratio):
                 </span>{" "}
-                Normal {"≤"}
-                1.5, Warning 1.6-3.0, Alert {">"}3.0
+                Normal {"<="}
+                {gasWarningStart}, Warning {gasWarningStart + 0.1}-{gasAlertStart}, Alert {">"}{gasAlertStart}
               </span>
               <span className="mr-3 md:mr-4 block">
                 <span className="font-semibold text-white">CO (ratio):</span>{" "}
-                Normal {"≤"}1.5, Warning 1.6-3.0, Alert {">"}3.0
+                Normal {"<="}{coWarningStart}, Warning {coWarningStart + 0.1}-{coAlertStart}, Alert {">"}{coAlertStart}
               </span>
               <span className="mr-3 md:mr-4 block">
                 <span className="font-semibold text-white">Humidity:</span>{" "}
-                Normal {"≤"}
-                80%, Warning 81-100%, Alert {">"}100%
+                Normal {"<="}
+                {humidityWarningStart}%, Warning {humidityWarningStart + 1}-{humidityAlertStart}%, Alert {">"}{humidityAlertStart}%
               </span>
               <span className="block">
                 <span className="font-semibold text-white">Flame:</span> Alert
-                if detected
+                if detected ({">="}{flameThreshold})
               </span>
             </div>
 
-            {/* Desktop: legend layout matching the provided screenshot (centered) */}
             <div className="hidden md:flex md:items-center md:justify-center md:gap-6 w-full">
               <div className="flex flex-col items-start ml-16 mr-4">
                 <span className="font-semibold text-white mb-2 ml-16">
@@ -165,17 +170,17 @@ export default function Dashboard() {
                 <div className="font-semibold">Humidity</div>
                 <div className="font-semibold">Flame</div>
 
-                <div>40-49°C</div>
-                <div>1.6-3.0 ratio</div>
-                <div>1.6-3.0 ratio</div>
-                <div>81-100%</div>
-                <div className="text-gray-500 mt-2">—</div>
+                <div>{tempWarningStart + 0.1}-{tempAlertStart}°C</div>
+                <div>{gasWarningStart + 0.1}-{gasAlertStart} ratio</div>
+                <div>{coWarningStart + 0.1}-{coAlertStart} ratio</div>
+                <div>{humidityWarningStart + 1}-{humidityAlertStart}%</div>
+                <div className="text-gray-500 mt-2">-</div>
 
-                <div>Above 50°C</div>
-                <div>Above 3.0 ratio</div>
-                <div>Above 3.0 ratio</div>
-                <div>Above 100%</div>
-                <div>If detected</div>
+                <div>Above {tempAlertStart}°C</div>
+                <div>Above {gasAlertStart} ratio</div>
+                <div>Above {coAlertStart} ratio</div>
+                <div>Above {humidityAlertStart}%</div>
+                <div>If {">="}{flameThreshold}</div>
               </div>
             </div>
           </div>

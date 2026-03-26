@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useRoom } from "./RoomContext";
 import { db } from "../firebase";
 import { ref, onValue } from "firebase/database";
+import { HUB_THRESHOLDS } from "../constants/thresholds";
 
 const NotificationContext = createContext();
 
@@ -24,15 +25,19 @@ export function NotificationProvider({ children }) {
     const hasBlinkingRooms = rooms.some((room) => {
       if (room.status !== "Active") return false;
       if (room.fire) return true;
-      // Alarm thresholds per design: Temp >55, Smoke >600, CO >70
       const isFire =
-        room.temperature > 55 || room.smoke > 600 || room.carbonMonoxide > 70;
-      // Warning thresholds per design: Temp 41-55, Smoke 301-600, CO 36-70, Humidity 86-95
+        room.temperature > HUB_THRESHOLDS.temperature.alert ||
+        room.smoke > HUB_THRESHOLDS.gas.alert ||
+        room.carbonMonoxide > HUB_THRESHOLDS.co.alert;
       const isWarning =
-        (room.temperature > 40 && room.temperature <= 55) ||
-        (room.smoke > 300 && room.smoke <= 600) ||
-        (room.carbonMonoxide > 35 && room.carbonMonoxide <= 70) ||
-        (room.humidity > 85 && room.humidity <= 95);
+        (room.temperature > HUB_THRESHOLDS.temperature.warning &&
+          room.temperature <= HUB_THRESHOLDS.temperature.alert) ||
+        (room.smoke > HUB_THRESHOLDS.gas.warning &&
+          room.smoke <= HUB_THRESHOLDS.gas.alert) ||
+        (room.carbonMonoxide > HUB_THRESHOLDS.co.warning &&
+          room.carbonMonoxide <= HUB_THRESHOLDS.co.alert) ||
+        (room.humidity > HUB_THRESHOLDS.humidity.warning &&
+          room.humidity <= HUB_THRESHOLDS.humidity.alert);
       return isFire || isWarning;
     });
 

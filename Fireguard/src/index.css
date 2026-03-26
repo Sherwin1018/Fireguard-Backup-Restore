@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/* Blinking red background */
+.blink-red {
+  animation: blinkRedBg 1s infinite;
+}
+@keyframes blinkRedBg {
+  0%,
+  100% {
+    background-color: #fee2e2;
+  }
+  50% {
+    background-color: #ef4444;
+  }
+}
+
+/* Blinking yellow background */
+.blink-yellow {
+  animation: blinkYellowBg 1s infinite;
+}
+@keyframes blinkYellowBg {
+  0%,
+  100% {
+    background-color: #fef9c3;
+  }
+  50% {
+    background-color: #facc15;
+  }
+}
